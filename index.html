@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>NUMBER CHAIN</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap');
+        
+        body {
+            font-family: "Fredoka", "Nunito", sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #faf8ef;
+            color: #776e65;
+            font-size: 18px;
+            text-align: center;
+            min-height: 100vh;
+            user-select: none;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .heading {
+            font-size: 48px;
+            font-weight: 700;
+            margin: 0 0 10px 0;
+            color: #776e65;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+            letter-spacing: 2px;
+        }
+
+        .subtitle {
+            font-size: 16px;
+            color: #8f7a66;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        .score-container {
+            display: flex;
+            justify-content: space-between;
+            margin: 20px 0;
+        }
+
+        .score-container div {
+            background: #bbada0;
+            padding: 12px 18px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            text-align: center;
+            flex: 1;
+            margin: 0 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .score-container .label {
+            font-size: 13px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            opacity: 0.9;
+            font-weight: 500;
+        }
+
+        .score-container .value {
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .game-area {
+            background: #bbada0;
+            border-radius: 16px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .cell {
+            aspect-ratio: 1;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cell:active {
+            transform: scale(1.2) translateY(-8px) rotate(5deg);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+            filter: brightness(1.3) saturate(1.2);
+            z-index: 10;
+        }
+
+        .cell.selected {
+            transform: scale(1.15) translateY(-6px);
+            box-shadow: 0 10px 25px rgba(246, 124, 95, 0.8);
+            animation: selectedPulse 1s ease-in-out infinite;
+            z-index: 5;
+        }
+
+        .cell.chain {
+            animation: chainReady 0.8s ease-in-out infinite;
+            filter: brightness(1.2) saturate(1.3);
+        }
+
+        .cell.removing {
+            animation: explodeRemove 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+            z-index: 15;
+        }
+
+        .cell.falling {
+            animation: dropFall 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        /* 2048風の可愛い色設定 */
+        .cell[data-value="0"] { background: rgba(238, 228, 218, 0.35); color: transparent; cursor: default; }
+        .cell[data-value="1"] { background: #eee4da; color: #776e65; }
+        .cell[data-value="2"] { background: #ede0c8; color: #776e65; }
+        .cell[data-value="3"] { background: #f2b179; color: #f9f6f2; }
+        .cell[data-value="4"] { background: #f59563; color: #f9f6f2; }
+        .cell[data-value="5"] { background: #f67c5f; color: #f9f6f2; }
+        .cell[data-value="6"] { background: #f65e3b; color: #f9f6f2; }
+        .cell[data-value="7"] { background: #edcf72; color: #f9f6f2; }
+        .cell[data-value="8"] { background: #edcc61; color: #f9f6f2; }
+        .cell[data-value="9"] { background: #edc850; color: #f9f6f2; }
+
+        @keyframes selectedPulse {
+            0%, 100% { 
+                box-shadow: 0 10px 25px rgba(246, 124, 95, 0.8);
+                filter: brightness(1.1);
+            }
+            50% { 
+                box-shadow: 0 15px 35px rgba(246, 124, 95, 1.2);
+                filter: brightness(1.3) hue-rotate(10deg);
+            }
+        }
+
+        @keyframes chainReady {
+            0%, 100% { 
+                transform: scale(1);
+                filter: brightness(1.2) saturate(1.3);
+            }
+            50% { 
+                transform: scale(1.08);
+                filter: brightness(1.4) saturate(1.5) hue-rotate(15deg);
+                box-shadow: 0 8px 20px rgba(237, 207, 114, 0.8);
+            }
+        }
+
+        @keyframes explodeRemove {
+            0% { 
+                transform: scale(1) rotate(0deg);
+                opacity: 1;
+                filter: brightness(1);
+            }
+            25% {
+                transform: scale(1.4) rotate(90deg);
+                filter: brightness(2) saturate(2);
+                box-shadow: 0 0 30px rgba(255, 255, 255, 0.8);
+            }
+            50% {
+                transform: scale(1.8) rotate(180deg);
+                filter: brightness(3) blur(2px) hue-rotate(180deg);
+                opacity: 0.8;
+            }
+            100% { 
+                transform: scale(0) rotate(720deg);
+                opacity: 0;
+                filter: brightness(5) blur(10px);
+            }
+        }
+
+        @keyframes dropFall {
+            0% { 
+                transform: translateY(-150px) scale(0.3) rotate(-180deg);
+                opacity: 0;
+                filter: blur(3px);
+            }
+            50% {
+                transform: translateY(-20px) scale(1.1) rotate(-45deg);
+                opacity: 0.8;
+                filter: blur(1px);
+            }
+            70% {
+                transform: translateY(10px) scale(1.05) rotate(0deg);
+                opacity: 1;
+                filter: blur(0px);
+            }
+            100% { 
+                transform: translateY(0) scale(1) rotate(0deg);
+                opacity: 1;
+                filter: blur(0px);
+            }
+        }
+
+        .chain-info {
+            background: linear-gradient(135deg, #f2b179, #f59563);
+            color: white;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            font-weight: 600;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .chain-info.success {
+            background: linear-gradient(135deg, #edcf72, #edc850);
+            animation: successBounce 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            transform: scale(1.05);
+        }
+
+        @keyframes successBounce {
+            0%, 100% { transform: scale(1.05); }
+            25% { transform: scale(1.15) rotate(2deg); }
+            50% { transform: scale(1.1) rotate(-1deg); }
+            75% { transform: scale(1.08) rotate(1deg); }
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #8f7a66, #9f8977);
+            border: none;
+            color: #f9f6f2;
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            font-family: inherit;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .btn:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+        }
+
+        .btn:active {
+            transform: translateY(-1px) scale(1.02);
+        }
+
+        .btn.clear {
+            background: linear-gradient(135deg, #f67c5f, #f65e3b);
+        }
+
+        .btn.execute {
+            background: linear-gradient(135deg, #edcf72, #edc850);
+            color: #776e65;
+            font-weight: 700;
+        }
+
+        .combo-display {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            font-weight: 700;
+            color: #edcf72;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.4);
+            pointer-events: none;
+            opacity: 0;
+            animation: comboExplosion 1.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            z-index: 20;
+        }
+
+        @keyframes comboExplosion {
+            0% { 
+                opacity: 0; 
+                transform: translate(-50%, -50%) scale(0) rotate(-180deg);
+                filter: blur(10px);
+            }
+            30% { 
+                opacity: 1; 
+                transform: translate(-50%, -50%) scale(1.5) rotate(0deg);
+                filter: blur(0px) brightness(2);
+            }
+            70% { 
+                opacity: 1; 
+                transform: translate(-50%, -50%) scale(1.2) rotate(10deg);
+                filter: blur(0px) brightness(1.5);
+            }
+            100% { 
+                opacity: 0; 
+                transform: translate(-50%, -50%) scale(0.8) rotate(20deg);
+                filter: blur(5px);
+            }
+        }
+
+        .particle {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: particleBurst 1s ease-out forwards;
+        }
+
+        @keyframes particleBurst {
+            0% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: scale(0) translateY(-100px);
+            }
+        }
+
+        /* モバイル対応 */
+        @media (max-width: 520px) {
+            .container {
+                margin: 0 10px;
+            }
+            
+            .heading {
+                font-size: 36px;
+            }
+            
+            .cell {
+                font-size: 28px;
+            }
+            
+            .game-area {
+                padding: 15px;
+            }
+            
+            .grid {
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="heading">NUMBER CHAIN</h1>
+        <p class="subtitle">隣接する数字をつなげて消そう！</p>
+        
+        <div class="score-container">
+            <div>
+                <div class="label">スコア</div>
+                <div class="value" id="score">0</div>
+            </div>
+            <div>
+                <div class="label">連鎖数</div>
+                <div class="value" id="chains">0</div>
+            </div>
+            <div>
+                <div class="label">最大連鎖</div>
+                <div class="value" id="max-chain">0</div>
+            </div>
+        </div>
+
+        <div class="game-area">
+            <div class="chain-info" id="chain-info">
+                隣接する数字をタップしてつなげよう！<br>
+                <small>連続数字(1→2→3)または同じ数字(7→7→7)でOK</small>
+            </div>
+            
+            <div class="grid" id="grid">
+                <!-- セルは動的に生成 -->
+            </div>
+
+            <div class="controls">
+                <button class="btn clear" onclick="clearSelection()">選択クリア</button>
+                <button class="btn execute" onclick="executeChain()">連鎖実行！</button>
+                <button class="btn" onclick="newGame()">新しいゲーム</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 効果音システム（より豪華に）
+        const SoundSystem = {
+            context: null,
+            
+            init() {
+                try {
+                    this.context = new (window.AudioContext || window.webkitAudioContext)();
+                } catch (e) {
+                    console.log('Audio not supported');
+                }
+            },
+
+            playTone(frequency, duration, type = 'sine', volume = 0.3) {
+                if (!this.context) return;
+                
+                const oscillator = this.context.createOscillator();
+                const gainNode = this.context.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(this.context.destination);
+                
+                oscillator.frequency.setValueAtTime(frequency, this.context.currentTime);
+                oscillator.type = type;
+                
+                gainNode.gain.setValueAtTime(0, this.context.currentTime);
+                gainNode.gain.linearRampToValueAtTime(volume, this.context.currentTime + 0.01);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, this.context.currentTime + duration);
+                
+                oscillator.start(this.context.currentTime);
+                oscillator.stop(this.context.currentTime + duration);
+            },
+
+            // ぷにぷに選択音
+            select() {
+                this.playTone(800, 0.1, 'triangle', 0.25);
+                setTimeout(() => this.playTone(1000, 0.05, 'triangle', 0.15), 50);
+            },
+
+            // 爆発的な連鎖音
+            explode() {
+                this.playTone(400, 0.1, 'sawtooth', 0.4);
+                setTimeout(() => this.playTone(800, 0.1, 'square', 0.3), 100);
+                setTimeout(() => this.playTone(1200, 0.2, 'sine', 0.35), 200);
+            },
+
+            // 成功音（より豪華）
+            success() {
+                this.playTone(523, 0.15, 'sine', 0.4);
+                setTimeout(() => this.playTone(659, 0.15, 'sine', 0.4), 100);
+                setTimeout(() => this.playTone(784, 0.2, 'sine', 0.4), 200);
+                setTimeout(() => this.playTone(1047, 0.25, 'sine', 0.4), 300);
+            },
+
+            // 超豪華コンボ音
+            superCombo(level) {
+                for (let i = 0; i < level + 2; i++) {
+                    setTimeout(() => {
+                        this.playTone(800 + i * 150, 0.12, 'sine', 0.3);
+                        this.playTone(400 + i * 75, 0.12, 'triangle', 0.2);
+                    }, i * 80);
+                }
+            },
+
+            error() {
+                this.playTone(200, 0.3, 'sawtooth', 0.2);
+            }
+        };
+
+        // パーティクルシステム追加
+        function createParticles(x, y, count = 8) {
+            const colors = ['#f2b179', '#f59563', '#edcf72', '#edc850', '#f67c5f'];
+            
+            for (let i = 0; i < count; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.background = colors[Math.floor(Math.random() * colors.length)];
+                particle.style.left = x + 'px';
+                particle.style.top = y + 'px';
+                
+                const angle = (Math.PI * 2 * i) / count;
+                const velocity = 50 + Math.random() * 30;
+                particle.style.setProperty('--dx', Math.cos(angle) * velocity + 'px');
+                particle.style.setProperty('--dy', Math.sin(angle) * velocity + 'px');
+                
+                document.body.appendChild(particle);
+                
+                setTimeout(() => particle.remove(), 1000);
+            }
+        }
+
+        // ゲーム状態
+        let grid = [];
+        let selectedCells = [];
+        let score = 0;
+        let totalChains = 0;
+        let maxChain = 0;
+        const GRID_SIZE = 6;
+
+        // 初期化
+        function init() {
+            SoundSystem.init();
+            createGrid();
+            newGame();
+        }
+
+        // グリッド作成
+        function createGrid() {
+            const gridElement = document.getElementById('grid');
+            gridElement.innerHTML = '';
+            grid = [];
+            
+            for (let row = 0; row < GRID_SIZE; row++) {
+                grid[row] = [];
+                for (let col = 0; col < GRID_SIZE; col++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.row = row;
+                    cell.dataset.col = col;
+                    cell.addEventListener('click', () => selectCell(row, col));
+                    gridElement.appendChild(cell);
+                    grid[row][col] = 0;
+                }
+            }
+        }
+
+        // 新しいゲーム
+        function newGame() {
+            score = 0;
+            totalChains = 0;
+            maxChain = 0;
+            selectedCells = [];
+            
+            // ランダム数字配置
+            for (let row = 0; row < GRID_SIZE; row++) {
+                for (let col = 0; col < GRID_SIZE; col++) {
+                    grid[row][col] = Math.floor(Math.random() * 9) + 1;
+                }
+            }
+            
+            updateDisplay();
+            document.getElementById('chain-info').textContent = '隣接する数字をタップしてつなげよう！';
+            document.getElementById('chain-info').className = 'chain-info';
+        }
+
+        // セル選択
+        function selectCell(row, col) {
+            if (grid[row][col] === 0) return;
+            
+            const cellIndex = selectedCells.findIndex(cell => cell.row === row && cell.col === col);
+            
+            if (cellIndex !== -1) {
+                // 既に選択済み - 選択解除
+                selectedCells.splice(cellIndex, 1);
+                SoundSystem.select();
+            } else {
+                // 新規選択 - 隣接チェック
+                if (selectedCells.length === 0 || isAdjacent(row, col, selectedCells[selectedCells.length - 1])) {
+                    selectedCells.push({row, col, value: grid[row][col]});
+                    SoundSystem.select();
+                    
+                    // パーティクル効果
+                    const cellElement = getCellElement(row, col);
+                    const rect = cellElement.getBoundingClientRect();
+                    createParticles(rect.left + rect.width/2, rect.top + rect.height/2, 4);
+                } else {
+                    SoundSystem.error();
+                    return;
+                }
+            }
+            
+            updateDisplay();
+            updateChainInfo();
+        }
+
+        // 隣接判定
+        function isAdjacent(row1, col1, cell2) {
+            const rowDiff = Math.abs(row1 - cell2.row);
+            const colDiff = Math.abs(col1 - cell2.col);
+            return (rowDiff === 1 && colDiff === 0) || (rowDiff === 0 && colDiff === 1);
+        }
+
+        // 連鎖情報更新
+        function updateChainInfo() {
+            const info = document.getElementById('chain-info');
+            
+            if (selectedCells.length === 0) {
+                info.textContent = '隣接する数字をタップしてつなげよう！';
+                info.className = 'chain-info';
+                return;
+            }
+            
+            if (selectedCells.length === 1) {
+                info.textContent = `${selectedCells[0].value} を選択中...隣接する数字をタップ！`;
+                info.className = 'chain-info';
+                return;
+            }
+            
+            const isValid = isValidChain(selectedCells);
+            if (isValid) {
+                const values = selectedCells.map(cell => cell.value);
+                info.innerHTML = `✨ ${values.join('→')} 素晴らしい連鎖！<br><strong>実行ボタンを押そう！</strong>`;
+                info.className = 'chain-info success';
+            } else {
+                const values = selectedCells.map(cell => cell.value);
+                info.innerHTML = `❌ ${values.join('→')} 無効な連鎖...<br><small>同じ数字か連続数字にしよう</small>`;
+                info.className = 'chain-info';
+            }
+        }
+
+        // 有効な連鎖判定
+        function isValidChain(cells) {
+            if (cells.length < 3) return false;
+            
+            const values = cells.map(cell => cell.value);
+            
+            // 同じ数字チェック
+            if (values.every(val => val === values[0])) return true;
+            
+            // 連続数字チェック（昇順）
+            let isAscending = true;
+            for (let i = 1; i < values.length; i++) {
+                if (values[i] !== values[i-1] + 1) {
+                    isAscending = false;
+                    break;
+                }
+            }
+            if (isAscending) return true;
+            
+            // 連続数字チェック（降順）
+            let isDescending = true;
+            for (let i = 1; i < values.length; i++) {
+                if (values[i] !== values[i-1] - 1) {
+                    isDescending = false;
+                    break;
+                }
+            }
+            return isDescending;
+        }
+
+        // 連鎖実行（超豪華演出）
+        function executeChain() {
+            if (selectedCells.length === 0) return;
+            
+            if (!isValidChain(selectedCells)) {
+                SoundSystem.error();
+                return;
+            }
+            
+            const chainLength = selectedCells.length;
+            
+            // 爆発的効果音
+            SoundSystem.explode();
+            
+            // セルにアニメーション追加（時間差で爆発）
+            selectedCells.forEach((cell, index) => {
+                const cellElement = getCellElement(cell.row, cell.col);
+                setTimeout(() => {
+                    cellElement.classList.add('removing');
+                    
+                    // パーティクル爆発
+                    const rect = cellElement.getBoundingClientRect();
+                    createParticles(rect.left + rect.width/2, rect.top + rect.height/2, 12);
+                }, index * 120);
+            });
+            
+            // スコア計算
+            const baseScore = chainLength * 15;
+            const bonusScore = Math.pow(chainLength - 2, 2) * 10;
+            const totalScore = baseScore + bonusScore;
+            
+            score += totalScore;
+            totalChains++;
+            if (chainLength > maxChain) {
+                maxChain = chainLength;
+            }
+            
+            // 超豪華コンボ表示
+            if (chainLength >= 5) {
+                showSuperCombo(chainLength);
+                SoundSystem.superCombo(chainLength - 4);
+            } else if (chainLength >= 4) {
+                showCombo(chainLength);
+                SoundSystem.success();
+            } else {
+                SoundSystem.success();
+            }
+            
+            // セル削除と新しい数字追加（落下演出）
+            setTimeout(() => {
+                selectedCells.forEach(cell => {
+                    grid[cell.row][cell.col] = Math.floor(Math.random() * 9) + 1;
+                });
+                selectedCells = [];
+                updateDisplay();
+                
+                // 豪華な落下アニメーション
+                const newCells = document.querySelectorAll('.cell');
+                newCells.forEach((cell, index) => {
+                    setTimeout(() => {
+                        cell.classList.add('falling');
+                        setTimeout(() => cell.classList.remove('falling'), 600);
+                    }, index * 50);
+                });
+                
+                document.getElementById('chain-info').innerHTML = '隣接する数字をタップしてつなげよう！<br><small>連続数字(1→2→3)または同じ数字(7→7→7)でOK</small>';
+                document.getElementById('chain-info').className = 'chain-info';
+            }, chainLength * 120 + 400);
+        }
+
+        // 超豪華コンボ表示
+        function showSuperCombo(length) {
+            const combo = document.createElement('div');
+            combo.className = 'combo-display';
+            combo.textContent = `${length}連鎖！！`;
+            combo.style.fontSize = '56px';
+            combo.style.color = '#edc850';
+            document.querySelector('.game-area').appendChild(combo);
+            
+            setTimeout(() => combo.remove(), 1500);
+        }
+
+        // 通常コンボ表示
+        function showCombo(length) {
+            const combo = document.createElement('div');
+            combo.className = 'combo-display';
+            combo.textContent = `${length}連鎖！`;
+            document.querySelector('.game-area').appendChild(combo);
+            
+            setTimeout(() => combo.remove(), 1000);
+        }
+
+        // セル要素取得
+        function getCellElement(row, col) {
+            return document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+        }
+
+        // 選択クリア
+        function clearSelection() {
+            selectedCells = [];
+            updateDisplay();
+            document.getElementById('chain-info').innerHTML = '隣接する数字をタップしてつなげよう！<br><small>連続数字(1→2→3)または同じ数字(7→7→7)でOK</small>';
+            document.getElementById('chain-info').className = 'chain-info';
+            SoundSystem.select();
+        }
+
+        // 表示更新
+        function updateDisplay() {
+            // スコア更新
+            document.getElementById('score').textContent = score;
+            document.getElementById('chains').textContent = totalChains;
+            document.getElementById('max-chain').textContent = maxChain;
+            
+            // グリッド更新
+            for (let row = 0; row < GRID_SIZE; row++) {
+                for (let col = 0; col < GRID_SIZE; col++) {
+                    const cell = getCellElement(row, col);
+                    const value = grid[row][col];
+                    cell.textContent = value || '';
+                    cell.dataset.value = value;
+                    cell.className = 'cell';
+                    
+                    // 選択状態反映
+                    const isSelected = selectedCells.some(selected => 
+                        selected.row === row && selected.col === col
+                    );
+                    if (isSelected) {
+                        cell.classList.add('selected');
+                    }
+                    
+                    // 連鎖予定のセル
+                    if (selectedCells.length >= 3 && isSelected && isValidChain(selectedCells)) {
+                        cell.classList.add('chain');
+                    }
+                }
+            }
+        }
+
+        // タッチ対応
+        document.addEventListener('touchstart', function() {
+            if (SoundSystem.context && SoundSystem.context.state === 'suspended') {
+                SoundSystem.context.resume();
+            }
+        }, { once: true });
+
+        // ゲーム開始
+        init();
+    </script>
+</body>
+</html>
